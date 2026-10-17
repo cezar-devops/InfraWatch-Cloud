@@ -5,12 +5,45 @@ from datetime import datetime
 from pathlib import Path
 
 import psutil
-
+import boto3
+AWS_PROFILE = "infrawatch"
+AWS_REGION = "us-east-1"
+CLOUDWATCH_NAMESPACE = "InfraWatch/Host"
 ALERT_THRESHOLD = 80
 MONITOR_INTERVAL = 5
 LOG_FILE = Path("logs") / "system_metrics.csv"
+def create_cloudwatch_client():
+    session = boto3.Session(
+        profile_name=AWS_PROFILE,
+        region_name=AWS_REGION
+    )
+    return session.client("cloudwatch")
+def prepare_cloudwatch_metrics(metrics):
+    return [
+        {
+            "MetricName": "CPUUsage",
+            "Value": metrics["cpu_percent"],
+            "Unit": "Percent"
+        },
+        {
+            "MetricName": "RAMUsage",
+            "Value": metrics["ram_percent"],
+            "Unit": "Percent"
+        },
+        {
+            "MetricName": "DiskUsage",
+            "Value": metrics["disk_percent"],
+            "Unit": "Percent"
+        }
+    ]
 
+def send_metrics_to_cloudwatch(client, metrics):
+    metric_data = prepare_cloudwatch_metrics(metrics)
 
+    return client.put_metric_data(
+        Namespace=CLOUDWATCH_NAMESPACE,
+        MetricData=metric_data
+    )
 def collect_metrics():
     disk_path = "C:\\" if platform.system() == "Windows" else "/"
 
